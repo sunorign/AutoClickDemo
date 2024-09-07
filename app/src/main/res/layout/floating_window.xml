@@ -1,0 +1,31 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/holo_blue_light"
+    android:padding="10dp">
+
+    <Button
+        android:id="@+id/btn_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="立即执行" />
+    <Button
+        android:id="@+id/btn_set_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="定时执行" />
+    <Button
+        android:id="@+id/btn_add_point"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="增加点击点" />
+
+    <Button
+        android:layout_marginBottom="15dp"
+        android:id="@+id/btn_clear"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="清除点击点" />
+
+</LinearLayout>

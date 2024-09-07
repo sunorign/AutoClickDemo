@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AutoClickDemo</string>
+    <string name="accessibility_service_description">AutoClick</string>
+    <string name="start">点我开始服务!</string>
+</resources>
