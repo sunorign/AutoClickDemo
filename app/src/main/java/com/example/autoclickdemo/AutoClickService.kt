@@ -5,6 +5,8 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.graphics.Point
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
@@ -15,6 +17,10 @@ class AutoClickService : AccessibilityService() {
 
     private lateinit var listener: ClickListener
     private val points = mutableListOf<Point>()
+    private var isWaitingForWindowChange = false // 标识是否在等待窗口变化
+    private var lastContentChangeTimestamp: Long = 0
+    private val stabilityCheckDelay = 250L // 500毫秒的窗口稳定检查
+    private val handler = Handler(Looper.getMainLooper())
 
     companion object {
         var instance: AutoClickService? = null
@@ -32,17 +38,26 @@ class AutoClickService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 这个方法可以用来处理你感兴趣的辅助事件，例如屏幕内容变化等
         event?.let {
             when (event.eventType) {
-                AccessibilityEvent.TYPE_VIEW_CLICKED -> {
-                    // 处理视图点击事件
-                    Log.d("AutoClickService", "View clicked")
-                }
-
                 AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                    // 处理窗口内容变化事件
-                    Log.d("AutoClickService", "Window content changed")
+                    if (isWaitingForWindowChange) {
+                        // 每次窗口内容变化，记录最新的变化时间戳
+                        lastContentChangeTimestamp = System.currentTimeMillis()
+
+                        // 取消之前的延迟任务（如果有）
+                        handler.removeCallbacksAndMessages(null)
+
+                        // 延迟执行检查，如果在指定时间内没有新的窗口变化，认为窗口稳定
+                        handler.postDelayed({
+                            val now = System.currentTimeMillis()
+                            if (now - lastContentChangeTimestamp >= stabilityCheckDelay) {
+                                Log.d("AutoClickService", "Window content stabilized, performing next click")
+                                isWaitingForWindowChange = false
+                                performNextClick() // 执行下一个点击
+                            }
+                        }, stabilityCheckDelay)
+                    }
                 }
 
                 else -> {
@@ -68,9 +83,9 @@ class AutoClickService : AccessibilityService() {
         this.points.clear()
         this.points.addAll(points)
         this.listener = listener
-        //todo：先执行第一个，等待窗口有没有变化，窗口变化结束执行第二个
-        performClick(points.first().x, points.first().y)
-        this.points.removeAt(0)
+        if (points.isNotEmpty()) {
+            performNextClick() // 执行第一个点击
+        }
     }
 
     /**
@@ -78,37 +93,52 @@ class AutoClickService : AccessibilityService() {
      * @param x 点击的横坐标
      * @param y 点击的纵坐标
      */
-    fun performClick(x: Int, y: Int) {
-        Log.d("AutoClickService", "Click coordinates: ($x, $y)")
-        val config = serviceInfo
-        if (config.flags and AccessibilityServiceInfo.FLAG_REQUEST_TOUCH_EXPLORATION_MODE != 0) {
-            Log.d("AutoClickService", "Touch exploration mode is enabled")
-        } else {
-            Log.d("AutoClickService", "Touch exploration mode is not enabled")
-        }
+    private fun performClick(x: Int, y: Int) {
+        handler.post {
+            Log.d("AutoClickService", "Click coordinates: ($x, $y)")
 
-        val path = Path().apply {
-            moveTo(x.toFloat(), y.toFloat())
-        }
+            val path = Path().apply {
+                moveTo(x.toFloat(), y.toFloat())
+            }
 
-        val gestureDescription = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 100)) // 0ms开始，持续100ms
-            .build()
+            val gestureDescription = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 100)) // 0ms开始，持续100ms
+                .build()
 
-        val dispatcherResult =
+            isWaitingForWindowChange = true // 标记等待窗口变化
+
             dispatchGesture(gestureDescription, object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription?) {
                     super.onCompleted(gestureDescription)
                     Log.d("AutoClickService", "Click at ($x, $y) completed")
+                    // 点击完成后，等待窗口变化完成
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription?) {
                     super.onCancelled(gestureDescription)
                     Log.e("AutoClickService", "Click at ($x, $y) cancelled")
+                    isWaitingForWindowChange = false
+                    handler.removeCallbacksAndMessages(null)
                 }
             }, null)
+        }
+    }
 
-        Log.e("AutoClickService", "dispatcherResult is $dispatcherResult")
+    /**
+     * 执行下一个点击操作
+     */
+    private fun performNextClick() {
+        if (points.isNotEmpty()) {
+            val nextPoint = points.removeAt(0) // 先获取并移除第一个点
+            performClick(nextPoint.x, nextPoint.y)
+        } else {
+            // 所有点击点都执行完毕，通知回调
+            listener.onFinish()
+        }
     }
 }
+
+
+
+
 

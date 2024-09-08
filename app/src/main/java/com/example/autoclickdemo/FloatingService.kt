@@ -195,7 +195,7 @@ class FloatingService : Service() {
 
     private fun startTask() {
         if (clickPoints.isEmpty()) {
-            Toast.makeText(this, "没有点击点，请先添加点击点", Toast.LENGTH_SHORT).show()
+            Toast.makeText(App.context, "没有点击点，请先添加点击点", Toast.LENGTH_SHORT).show()
             return
         }
         // 隐藏悬浮窗口
@@ -222,17 +222,20 @@ class FloatingService : Service() {
 
     private fun executeClickEvent() {
         if (clickPoints.isEmpty()) {
-            Toast.makeText(this, "无点击点，任务执行完毕", Toast.LENGTH_SHORT).show()
+            Toast.makeText(App.context, "无点击点，任务执行完毕", Toast.LENGTH_SHORT).show()
         }
         for (view in pointViews) {
             view.visibility = View.GONE
         }
+
         AutoClickService.instance?.saveClickPoint(clickPoints,
             object : AutoClickService.ClickListener {
                 override fun onFinish() {
                     for (view in pointViews) {
                         view.visibility = View.VISIBLE
                     }
+                    floatingView.visibility = View.VISIBLE
+                    Toast.makeText(App.context, "任务执行完毕", Toast.LENGTH_SHORT).show()
                 }
             })
     }
@@ -267,12 +270,11 @@ class FloatingService : Service() {
             if (clickPoints.isNotEmpty()) {
                 // 移除最后一个点击点
                 clickPoints.removeLast()
-
                 // 移除最后一个标志位视图
                 val lastPointView = pointViews.removeLast()
                 windowManager.removeView(lastPointView)
             } else {
-                Toast.makeText(this, "没有点击点可清除", Toast.LENGTH_SHORT).show()
+                Toast.makeText(App.context, "没有点击点可清除", Toast.LENGTH_SHORT).show()
             }
         }
     }
